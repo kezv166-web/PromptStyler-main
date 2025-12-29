@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptStyler Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f1115;
+            --card-bg: #181b21;
+            --input-bg: #22262e;
+            --border-color: #2f3441;
+            --primary-color: #6366f1;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --success-color: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .options-container {
+            width: 100%;
+            max-width: 700px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 48px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .description {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+
+        .section-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+
+        .info-card {
+            padding: 24px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+
+        .provider-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .provider-name .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            background: var(--success-color);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .provider-desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="options-container">
+        <div class="logo">
+            <span class="logo-icon">✨</span>
+            <h1>PromptStyler Settings</h1>
+        </div>
+
+        <p class="description">
+            PromptStyler transforms your messy prompts into clean, professional, task-optimized instructions.
+            No configuration required — it just works!
+        </p>
+
+        <div class="section-label">AI Provider</div>
+        <div class="info-card">
+            <p class="provider-name">
+                Pollinations AI
+                <span class="badge">Free</span>
+            </p>
+            <p class="provider-desc">
+                No API key required. PromptStyler uses the free Pollinations AI API for all prompt refinement requests.
+                Simply type your prompt, select a style, and click Refine!
+            </p>
+        </div>
+
+        <div class="footer">
+            Made with ❤️ for better prompts
+        </div>
+    </div>
+    <script src="options.js"></script>
+</body>
+
+</html>

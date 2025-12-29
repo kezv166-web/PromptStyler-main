@@ -1,0 +1,337 @@
+PROMPT ENGINEERING GUIDE
+------------------------------------------------------------
+1. OVERVIEW
+------------------------------------------------------------
+
+Prompt engineering is the practice of designing structured, clear, and efficient instructions for Large Language Models (LLMs). 
+The way you format a prompt influences accuracy, tone, creativity, and—importantly—token usage. 
+This expanded guide explains prompt styles in depth, with real examples, and highlights the role of tokens, including Markdown, JSON, TOON, and more.
+
+------------------------------------------------------------
+1.1 Why Prompt Styles Matter
+------------------------------------------------------------
+
+Each prompt style serves a specific purpose:
+
+- Markdown → Improves readability and clarity with section formatting.
+- JSON → Enforces structured, machine-readable outputs.
+- TOON → Minimizes token usage for large datasets.
+- Persona prompts → Control tone or perspective for conversation.
+- Templates → Help maintain consistency for repeated tasks.
+- Chain-of-thought → Enhances reasoning.
+- Zero-shot / Few-shot → Give the model context through examples.
+
+Choosing the correct style ensures the model understands the task while controlling cost and predictability.
+
+------------------------------------------------------------
+1.2 What Are Tokens?
+------------------------------------------------------------
+
+A token is a small piece of text—such as a word fragment, punctuation mark, or full word—that an LLM reads or generates.  
+LLMs operate, output, and bill based on token count.
+
+Example of how text becomes tokens:
+Sentence: “AI improves productivity.”
+Possible token split: ["AI", " improves", " productivity", "."]
+
+Why tokens matter:
+- More tokens → higher cost
+- More tokens → higher latency
+- Exceeding token limits → model can't process input
+
+Prompt formats (Markdown, JSON, TOON) differ in token efficiency.  
+This document explains those differences clearly.
+
+------------------------------------------------------------
+2. FUNDAMENTALS OF PROMPTING
+------------------------------------------------------------
+
+A strong prompt includes:
+
+1. Context — background information  
+2. Instruction — what the model should do  
+3. Constraints — length, tone, or rules  
+4. Format — JSON, Markdown, TOON, plain text  
+5. Examples — optional but useful in few-shot prompting  
+
+Prompt workflow: Draft → Test → Refine → Optimize
+
+------------------------------------------------------------
+3. PROMPT STYLES (EXPANDED)
+------------------------------------------------------------
+
+------------------------------------------------------------
+3.1 Markdown-Based Prompting
+------------------------------------------------------------
+
+Markdown uses structured headings, bullet lists, and emphasis symbols.  
+It is ideal when clarity and readability are important.
+
+Benefits:
+- Human-friendly structure  
+- Easy to separate tasks into sections  
+- Reduces ambiguity  
+
+Limitations:
+- Markdown symbols add slightly more tokens  
+- Not fully machine-structured like JSON  
+
+Example:
+## Task  
+Summarize the following text in exactly 3 bullet points.
+
+## Text  
+[Enter text here]
+
+## Output Format  
+- Point 1  
+- Point 2  
+- Point 3
+
+Where Markdown works best:
+- Writing instructions
+- Technical explanations
+- Step-by-step guides
+
+------------------------------------------------------------
+3.2 JSON Prompting
+------------------------------------------------------------
+
+JSON is strict, structured, and predictable.  
+It is commonly used when interacting with systems, tools, and automation workflows.
+
+Benefits:
+- Precise structure  
+- Easy to parse by code  
+- Reduces hallucinations by defining explicit fields  
+
+Limitations:
+- Repetitive quoting and field names increase token count  
+- Not ideal for massive datasets  
+
+JSON Example:
+{
+  "task": "extract_summary",
+  "language": "English",
+  "length": "short",
+  "text": "Your input here"
+}
+
+When to use JSON:
+- API output formats  
+- Multi-step workflows  
+- Any task requiring exact formatting  
+
+------------------------------------------------------------
+3.3 TOON Prompting (Token-Oriented Object Notation)
+------------------------------------------------------------
+
+TOON is a compact structured format created to reduce token usage.  
+It is most effective with uniform datasets such as lists, tables, or repeated objects.
+
+Why TOON saves tokens:
+- Removes quotes  
+- Removes braces {}  
+- Removes commas between fields  
+- Eliminates repeated field names  
+
+JSON vs TOON Comparison Example:
+
+JSON (longer):
+[
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "age": 25 }
+]
+
+TOON (shorter):
+name, age
+Alice, 30
+Bob, 25
+
+Use Cases:
+- Large datasets  
+- Product listings  
+- Logs or database exports  
+- When prompt size affects cost or model limits  
+
+Limitations:
+- Works best only when each row has the same structure  
+- Not suited for deep nested objects  
+
+------------------------------------------------------------
+3.4 Persona / Role Prompting
+------------------------------------------------------------
+
+Role prompts establish a personality, perspective, or expertise.
+
+Example:
+“You are a friendly cybersecurity expert. Explain phishing to a beginner in simple language.”
+
+Benefits:
+- Strong control over tone  
+- Better contextual responses  
+
+Limitations:
+- Not focused on structure or token saving  
+
+Where persona prompting excels:
+- Customer support chatbots  
+- Creative writing  
+- Education and training  
+
+------------------------------------------------------------
+3.5 Template-Based Prompting
+------------------------------------------------------------
+
+Templates create reusable structures for consistent outputs.
+
+Example Template:
+Task: {task}
+Constraints:
+- {constraint1}
+- {constraint2}
+Output Format:
+{format}
+
+Benefits:
+- Ensures consistency  
+- Great for workflows and teams  
+
+Works best for:
+- Repeated business processes  
+- Coding tasks  
+- Report generation  
+
+------------------------------------------------------------
+3.6 Chain-of-Thought Prompting
+------------------------------------------------------------
+
+Encourages the model to think step-by-step.
+
+Example:
+“Explain your reasoning step-by-step before giving the final answer.”
+
+Benefits:
+- Improves logic-heavy tasks  
+- Higher problem-solving accuracy  
+
+Limitations:
+- Generates more tokens  
+- Not needed for simple tasks  
+
+------------------------------------------------------------
+3.7 Few-Shot Prompting
+------------------------------------------------------------
+
+Uses examples to teach a pattern.
+
+Example:
+Input: happy → Output: feeling joy  
+Input: sad → Output: feeling sorrow  
+
+Now do: excited
+
+Useful for:
+- Style learning  
+- Custom transformations  
+- Specific tone replication  
+
+------------------------------------------------------------
+3.8 Zero-Shot Prompting
+------------------------------------------------------------
+
+No examples, only instruction.
+
+Example:
+“Summarize this text in one paragraph.”
+
+Simple, fast, and effective for general tasks.
+
+------------------------------------------------------------
+3.9 Constraint-Based Prompting
+------------------------------------------------------------
+
+Constraints define boundaries.
+
+Example:
+“Write exactly 25 words. Do not use technical vocabulary.”
+
+Useful for:
+- Exams  
+- Controlled summaries  
+- UI text  
+
+------------------------------------------------------------
+3.10 Multi-Modal Prompting
+------------------------------------------------------------
+
+Prompts that include images, audio, or other media.
+
+Example (image):
+“Describe the objects visible in this image.”
+
+Used for:
+- Image understanding  
+- Visual analysis tasks  
+
+------------------------------------------------------------
+4. TOKENS & PARAMETERS
+------------------------------------------------------------
+
+------------------------------------------------------------
+4.1 Temperature
+Controls randomness.
+Low = factual, High = creative.
+
+4.2 Top-P  
+Controls sampling probability.
+
+4.3 Top-K  
+Limits candidate token selection.
+
+4.4 Frequency Penalty  
+Reduces repeated words.
+
+4.5 Presence Penalty  
+Encourages new topics.
+
+4.6 Max Tokens  
+Defines output length.
+
+------------------------------------------------------------
+5. COMPARISON OF PROMPT STYLES
+------------------------------------------------------------
+
+Style | Structure | Token Cost | Best Use  
+------|-----------|------------|-----------  
+Markdown | Readable | Medium | Documentation-style prompts  
+JSON | Strict | High | Automation, API workflows  
+TOON | Compact | Low | Large datasets, cost reduction  
+Persona | Tone-based | Medium | Conversation, scripts  
+CoT | Reasoning | High | Problem-solving  
+Templates | Repeatable | Medium | Business workflows  
+
+------------------------------------------------------------
+6. REAL-WORLD APPLICATIONS
+------------------------------------------------------------
+
+- Coding and debugging  
+- Data extraction  
+- Summarization  
+- Educational material generation  
+- Chatbots  
+- Structured database analysis  
+
+------------------------------------------------------------
+7. BEST PRACTICES
+------------------------------------------------------------
+
+- Keep instructions explicit  
+- Use formats (JSON, TOON) only when needed  
+- Reduce unnecessary text to save tokens  
+- Use low temperature for factual tasks  
+- Test and refine prompts  
+
+------------------------------------------------------------
+
+
