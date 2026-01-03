@@ -338,11 +338,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // For now, removing the check for API key.
 
     async function callPollinations(text, style) {
-        // Construct the full prompt
-        const fullPrompt = `${SYSTEM_PROMPT}\n\nStyle: ${style}\n\nUser Input:\n${text}`;
+        // Construct the user prompt (style + input)
+        const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
 
-        // Use POST to avoid URL length limits
-        const url = 'https://text.pollinations.ai/';
+        // Use GET method - the POST API is deprecated
+        // Format: https://text.pollinations.ai/{prompt}?model=openai&system={system}&seed=42
+        const encodedPrompt = encodeURIComponent(userPrompt);
+        const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
+        const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
         // Create AbortController for timeout
         const controller = new AbortController();
@@ -350,17 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: [
-                        { role: 'user', content: fullPrompt }
-                    ],
-                    model: 'openai',
-                    seed: 42
-                }),
+                method: 'GET',
                 signal: controller.signal
             });
 
@@ -371,36 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await res.text();
-
-            // Clean response - remove Pollinations deprecation notices and warnings
-            let cleaned = data.trim();
-
-            // Remove deprecation warning if present (multiple pattern matching)
-            // Pattern 1: "⚠️ IMPORTANT NOTICE ⚠️" block
-            const warningPatterns = [
-                /⚠️\s*\*{0,2}IMPORTANT NOTICE\*{0,2}\s*⚠️[\s\S]*?work normally\.?/gi,
-                /\*{0,2}IMPORTANT NOTICE\*{0,2}[\s\S]*?work normally\.?/gi,
-                /please migrate to[\s\S]*?enter\.pollinations\.ai[\s\S]*?work normally\.?/gi,
-                /The Pollinations legacy text API[\s\S]*?work normally\.?/gi,
-                /deprecated for[\s\S]*?authenticated users[\s\S]*?work normally\.?/gi
-            ];
-
-            for (const pattern of warningPatterns) {
-                cleaned = cleaned.replace(pattern, '').trim();
-            }
-
-            // Also remove any "Support Pollinations" ads at the end
-            if (cleaned.includes('Support Pollinations')) {
-                const adStart = cleaned.indexOf('---');
-                if (adStart !== -1 && adStart > cleaned.length / 2) {
-                    cleaned = cleaned.substring(0, adStart).trim();
-                }
-            }
-
-            // Clean up any leftover newlines at the start
-            cleaned = cleaned.replace(/^\n+/, '').trim();
-
-            return cleaned;
+            return data.trim();
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {

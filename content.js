@@ -255,35 +255,16 @@ STRICT RULES:
             btn.textContent = '⏳ Refining...';
             errorDiv.style.display = 'none';
 
-            const fullPrompt = `${SYSTEM_PROMPT}\n\nStyle: ${style}\n\nUser Input:\n${text}`;
+            const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
+            const encodedPrompt = encodeURIComponent(userPrompt);
+            const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
+            const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
-            const response = await fetch('https://text.pollinations.ai/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: 'user', content: fullPrompt }],
-                    model: 'openai',
-                    seed: 42
-                })
-            });
+            const response = await fetch(url, { method: 'GET' });
 
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-            let result = (await response.text()).trim();
-
-            // Clean response - remove Pollinations deprecation notices
-            const warningPatterns = [
-                /⚠️\s*\*{0,2}IMPORTANT NOTICE\*{0,2}\s*⚠️[\s\S]*?work normally\.?/gi,
-                /\*{0,2}IMPORTANT NOTICE\*{0,2}[\s\S]*?work normally\.?/gi,
-                /please migrate to[\s\S]*?enter\.pollinations\.ai[\s\S]*?work normally\.?/gi,
-                /The Pollinations legacy text API[\s\S]*?work normally\.?/gi,
-                /deprecated for[\s\S]*?authenticated users[\s\S]*?work normally\.?/gi
-            ];
-            for (const pattern of warningPatterns) {
-                result = result.replace(pattern, '').trim();
-            }
-            result = result.replace(/^\n+/, '').trim();
-
+            const result = (await response.text()).trim();
             resultArea.value = result;
             resultSection.classList.add('visible');
             btn.textContent = '🔄 Refine Again';
