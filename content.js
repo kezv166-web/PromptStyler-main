@@ -269,7 +269,21 @@ STRICT RULES:
 
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-            const result = (await response.text()).trim();
+            let result = (await response.text()).trim();
+
+            // Clean response - remove Pollinations deprecation notices
+            const warningPatterns = [
+                /⚠️\s*\*{0,2}IMPORTANT NOTICE\*{0,2}\s*⚠️[\s\S]*?work normally\.?/gi,
+                /\*{0,2}IMPORTANT NOTICE\*{0,2}[\s\S]*?work normally\.?/gi,
+                /please migrate to[\s\S]*?enter\.pollinations\.ai[\s\S]*?work normally\.?/gi,
+                /The Pollinations legacy text API[\s\S]*?work normally\.?/gi,
+                /deprecated for[\s\S]*?authenticated users[\s\S]*?work normally\.?/gi
+            ];
+            for (const pattern of warningPatterns) {
+                result = result.replace(pattern, '').trim();
+            }
+            result = result.replace(/^\n+/, '').trim();
+
             resultArea.value = result;
             resultSection.classList.add('visible');
             btn.textContent = '🔄 Refine Again';

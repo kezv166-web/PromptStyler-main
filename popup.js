@@ -371,7 +371,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await res.text();
-            return data.trim();
+
+            // Clean response - remove Pollinations deprecation notices and warnings
+            let cleaned = data.trim();
+
+            // Remove deprecation warning if present (multiple pattern matching)
+            // Pattern 1: "⚠️ IMPORTANT NOTICE ⚠️" block
+            const warningPatterns = [
+                /⚠️\s*\*{0,2}IMPORTANT NOTICE\*{0,2}\s*⚠️[\s\S]*?work normally\.?/gi,
+                /\*{0,2}IMPORTANT NOTICE\*{0,2}[\s\S]*?work normally\.?/gi,
+                /please migrate to[\s\S]*?enter\.pollinations\.ai[\s\S]*?work normally\.?/gi,
+                /The Pollinations legacy text API[\s\S]*?work normally\.?/gi,
+                /deprecated for[\s\S]*?authenticated users[\s\S]*?work normally\.?/gi
+            ];
+
+            for (const pattern of warningPatterns) {
+                cleaned = cleaned.replace(pattern, '').trim();
+            }
+
+            // Also remove any "Support Pollinations" ads at the end
+            if (cleaned.includes('Support Pollinations')) {
+                const adStart = cleaned.indexOf('---');
+                if (adStart !== -1 && adStart > cleaned.length / 2) {
+                    cleaned = cleaned.substring(0, adStart).trim();
+                }
+            }
+
+            // Clean up any leftover newlines at the start
+            cleaned = cleaned.replace(/^\n+/, '').trim();
+
+            return cleaned;
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {
