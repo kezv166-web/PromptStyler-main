@@ -1,0 +1,4 @@
+﻿--- TOON ---
+task: create user management system
+fields[4]: id,name,email,role
+operations: add, remove

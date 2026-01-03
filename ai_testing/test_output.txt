@@ -1,0 +1,14 @@
+﻿--- TOON ---
+task:
+  action: write a Python script that sorts a list of numbers
+
+--- PROFESSIONAL ---
+Task: Write a Python script that sorts a list of numbers in ascending order and prints the sorted list. Use Python's built-in sorting (sorted() or list.sort()). The script should handle integers and floats. Example input: [5, 2, 9, 1] -> Example output: [1, 2, 5, 9].
+
+--- JSON ---
+{
+  "task": "Write a Python script that sorts a list of numbers",
+  "context": "",
+  "constraints": "",
+  "output_format": "Python script"
+}

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.env
+
+# AI Testing outputs (contains training data)
+ai_testing/output/
+
+# Config with API keys (use environment variables instead)
+# ai_testing/config.py - now uses env vars, safe to commit
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
