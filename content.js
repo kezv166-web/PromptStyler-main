@@ -257,8 +257,8 @@ STRICT RULES:
 
             const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
 
-            // Use OpenAI-compatible POST endpoint to avoid deprecation notice
-            const url = 'https://text.pollinations.ai/openai';
+            // Use the new gen.pollinations.ai endpoint (not deprecated)
+            const url = 'https://gen.pollinations.ai/v1/chat/completions';
 
             const response = await fetch(url, {
                 method: 'POST',

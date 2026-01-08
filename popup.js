@@ -341,8 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Construct the user prompt (style + input)
         const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
 
-        // Use OpenAI-compatible POST endpoint to avoid deprecation notice
-        const url = 'https://text.pollinations.ai/openai';
+        // Use the new gen.pollinations.ai endpoint (not deprecated)
+        const url = 'https://gen.pollinations.ai/v1/chat/completions';
 
         // Create AbortController for timeout
         const controller = new AbortController();

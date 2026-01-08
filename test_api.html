@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>API Test - Fixed</title>
+    <title>API Test - Anonymous Mode</title>
     <style>
         body {
             font-family: Arial;
@@ -48,8 +48,8 @@
 </head>
 
 <body>
-    <h1>🔧 Fixed API Test - Using POST Endpoint</h1>
-    <p>Click each button to test different styles with the new POST endpoint:</p>
+    <h1>🔧 API Test - Anonymous Mode (credentials: omit)</h1>
+    <p>Testing with anonymous requests to avoid deprecation notice:</p>
 
     <button onclick="testStyle('PROFESSIONAL')">Test PROFESSIONAL</button>
     <button onclick="testStyle('MARKDOWN')">Test MARKDOWN</button>
@@ -60,7 +60,7 @@
     <div id="results"></div>
 
     <script>
-        const SYSTEM_PROMPT = `You are "PromptStyler", an advanced prompt-refinement system. Output ONLY the refined prompt, no explanations.`;
+        const SYSTEM_PROMPT = `You are "PromptStyler". Output ONLY the refined prompt, no explanations.`;
 
         async function testStyle(style) {
             const resultsDiv = document.getElementById('results');
@@ -70,23 +70,15 @@
 
             try {
                 const userPrompt = `Style: ${style}\n\nUser Input:\n${testPrompt}`;
+                const encodedPrompt = encodeURIComponent(userPrompt);
+                const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
 
-                // Using the new POST endpoint
-                const url = 'https://text.pollinations.ai/openai';
+                // Using GET with credentials: 'omit' to make anonymous request
+                const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
                 const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'openai',
-                        messages: [
-                            { role: 'system', content: SYSTEM_PROMPT },
-                            { role: 'user', content: userPrompt }
-                        ],
-                        seed: 42
-                    })
+                    method: 'GET',
+                    credentials: 'omit'  // This makes the request anonymous
                 });
 
                 console.log('Response status:', response.status);
@@ -95,12 +87,11 @@
                     throw new Error(`API Error: ${response.status}`);
                 }
 
-                const data = await response.json();
-                const result = data.choices[0].message.content.trim();
+                const result = await response.text();
 
                 console.log('Result:', result);
 
-                resultsDiv.innerHTML += `<div class="result success"><strong>✅ Status:</strong> ${response.status}<br><strong>Response:</strong><br>${escapeHtml(result)}</div>`;
+                resultsDiv.innerHTML += `<div class="result success"><strong>✅ Status:</strong> ${response.status}<br><strong>Response:</strong><br>${escapeHtml(result.trim())}</div>`;
             } catch (error) {
                 console.error('Error:', error);
                 resultsDiv.innerHTML += `<div class="result error"><strong>❌ Error:</strong> ${error.message}</div>`;
