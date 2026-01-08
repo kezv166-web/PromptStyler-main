@@ -256,15 +256,29 @@ STRICT RULES:
             errorDiv.style.display = 'none';
 
             const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
-            const encodedPrompt = encodeURIComponent(userPrompt);
-            const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
-            const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
-            const response = await fetch(url, { method: 'GET' });
+            // Use OpenAI-compatible POST endpoint to avoid deprecation notice
+            const url = 'https://text.pollinations.ai/openai';
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'openai',
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    seed: 42
+                })
+            });
 
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-            const result = (await response.text()).trim();
+            const data = await response.json();
+            const result = data.choices[0].message.content.trim();
             resultArea.value = result;
             resultSection.classList.add('visible');
             btn.textContent = '🔄 Refine Again';

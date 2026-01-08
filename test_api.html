@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>API Test - Fixed</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .result {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+        }
+
+        button:hover {
+            background: #5254cc;
+        }
+
+        h3 {
+            color: #6366f1;
+        }
+
+        .success {
+            border-left: 4px solid #10b981;
+        }
+
+        .error {
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔧 Fixed API Test - Using POST Endpoint</h1>
+    <p>Click each button to test different styles with the new POST endpoint:</p>
+
+    <button onclick="testStyle('PROFESSIONAL')">Test PROFESSIONAL</button>
+    <button onclick="testStyle('MARKDOWN')">Test MARKDOWN</button>
+    <button onclick="testStyle('JSON')">Test JSON</button>
+    <button onclick="testStyle('TOON')">Test TOON</button>
+    <button onclick="clearResults()">Clear Results</button>
+
+    <div id="results"></div>
+
+    <script>
+        const SYSTEM_PROMPT = `You are "PromptStyler", an advanced prompt-refinement system. Output ONLY the refined prompt, no explanations.`;
+
+        async function testStyle(style) {
+            const resultsDiv = document.getElementById('results');
+            const testPrompt = "write a simple hello world program";
+
+            resultsDiv.innerHTML += `<h3>Testing ${style}...</h3>`;
+
+            try {
+                const userPrompt = `Style: ${style}\n\nUser Input:\n${testPrompt}`;
+
+                // Using the new POST endpoint
+                const url = 'https://text.pollinations.ai/openai';
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'openai',
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        seed: 42
+                    })
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const result = data.choices[0].message.content.trim();
+
+                console.log('Result:', result);
+
+                resultsDiv.innerHTML += `<div class="result success"><strong>✅ Status:</strong> ${response.status}<br><strong>Response:</strong><br>${escapeHtml(result)}</div>`;
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML += `<div class="result error"><strong>❌ Error:</strong> ${error.message}</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+
+</html>

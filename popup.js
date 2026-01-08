@@ -341,11 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Construct the user prompt (style + input)
         const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
 
-        // Use GET method - the POST API is deprecated
-        // Format: https://text.pollinations.ai/{prompt}?model=openai&system={system}&seed=42
-        const encodedPrompt = encodeURIComponent(userPrompt);
-        const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
-        const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
+        // Use OpenAI-compatible POST endpoint to avoid deprecation notice
+        const url = 'https://text.pollinations.ai/openai';
 
         // Create AbortController for timeout
         const controller = new AbortController();
@@ -353,7 +350,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch(url, {
-                method: 'GET',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'openai',
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    seed: 42
+                }),
                 signal: controller.signal
             });
 
@@ -363,8 +371,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`Pollinations API Error: ${res.status} ${res.statusText}`);
             }
 
-            const data = await res.text();
-            return data.trim();
+            const data = await res.json();
+            return data.choices[0].message.content.trim();
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {
