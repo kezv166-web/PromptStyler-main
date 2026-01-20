@@ -128,6 +128,7 @@
                 cursor: pointer; transition: all 0.2s;
             }
             .ps-btn-use:hover { background: #059669; }
+            .ps-footer { margin-top: 16px; padding: 10px; text-align: center; font-size: 12px; color: #9ca3af; background: rgba(255,193,7,0.1); border-radius: 6px; border: 1px solid rgba(255,193,7,0.2); }
             .ps-error { color: #ef4444; font-size: 12px; padding: 8px; background: rgba(239,68,68,0.1); border-radius: 4px; }
             @keyframes psFadeIn { from { opacity: 0; } to { opacity: 1; } }
             @keyframes psSlideIn { from { opacity: 0; transform: translate(-50%, -45%); } to { opacity: 1; transform: translate(-50%, -50%); } }
@@ -178,6 +179,7 @@
                     <div class="ps-actions">
                         <button class="ps-btn-use" id="ps-use">✅ Use This Prompt</button>
                     </div>
+                    <div class="ps-footer">⚠️ AI-generated output — please verify before using</div>
                 </div>
                 <div class="ps-error" id="ps-error" style="display:none;"></div>
             </div>
