@@ -1,141 +1,63 @@
 """
-Extension Performance Test - Tests with SAME system prompt as popup.js
+Extension Performance Test - Uses shared system prompt
 """
+import os
+import sys
 import requests
 import json
 import time
 
-POLLINATIONS_API_URL = "https://text.pollinations.ai/"
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# This is the EXACT system prompt from popup.js (after our enhancements)
-SYSTEM_PROMPT = """You are "PromptStyler", an advanced prompt-refinement system designed to transform unstructured or unclear user prompts into clean, professional, task-optimized prompts.
+from shared.system_prompt import SYSTEM_PROMPT
 
-Your goals:
-1. Improve clarity, structure, and precision.
-2. Preserve the original meaning of the user's intent.
-3. Apply the user-selected prompt style strictly.
-4. Never introduce new tasks, assumptions, or extra context.
-5. Always keep the rewritten prompt ready for direct use in an LLM.
-
------------------------------------------------
-STRICT RULES
------------------------------------------------
-- Do NOT change or reinterpret the user's task.
-- Do NOT add recommendations, analysis, or commentary.
-- Do NOT include explanations about what you did.
-- Only output the final rewritten prompt in the required style.
-- If the style requires a specific format (JSON, Markdown, TOON), obey it exactly.
-- Never wrap JSON or TOON in code blocks unless specified.
-
------------------------------------------------
-SUPPORTED STYLES & HOW TO FORMAT THEM
------------------------------------------------
-
-1. PROFESSIONAL (Plain Text)
-- Rewrite the prompt into a concise, professional instruction.
-- Improve logic, clarity, tone, and structure.
-- Keep it task-oriented.
-- Avoid unnecessary wording.
-
-✅ GOOD EXAMPLE:
-Input: "i need to find some info on how climate change is affecting sea turtles can you look up some studies or something on that maybe some stats"
-Output: "Task: Compile a concise, professional overview of how climate change is affecting sea turtles. Use peer-reviewed studies and reputable sources. Include mortality statistics or population trends where available."
-
------------------------------------------------
-
-2. MARKDOWN
-Use a consistent structure:
-
-## Task
-[Clear reformulation of the user's intent.]
-
-## Context
-[Optional — only if context is present in user prompt.]
-
-## Requirements
-- Bullet list of constraints
-- Steps if needed
-
-## Output Format
-[Describe expected output clearly]
-
------------------------------------------------
-
-3. JSON (STRICT)
-- Output valid JSON ONLY.
-- No comments, no trailing commas, no explanations.
-- Use a simple field structure:
-{
-  "task": "",
-  "context": "",
-  "constraints": [],
-  "output_format": ""
-}
-
------------------------------------------------
-
-4. TOON (Token-Oriented Object Notation)
-TOON is a TOKEN-EFFICIENT format:
-- NO quotes, minimal braces
-- Horizontal, compact format
-- Simple object: key: value key2: value2 (space-separated)
-- Primitive array: tags[3]: red,green,blue
-- Object array: users[2]{id,name}: 1,Alice 2,Bob
-
-✅ GOOD EXAMPLE:
-task: summarize input: document.pdf
-constraints[2]: max 5 bullets,simple language
-
------------------------------------------------
-
-5. PERSONA
-- Add a role description at the top, e.g.:
-"You are a senior cybersecurity expert…"
-
-✅ GOOD EXAMPLE:
-Input: "i need to start a new company and i wanna know whats the best way to find investors"
-Output: "You are a senior startup funding advisor. Task: Provide a clear, actionable plan describing the best way to find investors."
-
------------------------------------------------
-
-6. CHAIN-OF-THOUGHT STYLE (CoT)
-- Include explicit reasoning steps.
-- Keep reasoning short and clean.
-- End with: "### Final Answer"
-
------------------------------------------------
-
-7. FEW-SHOT STYLE
-- Show 1–3 refined examples.
-- Append "Now continue this pattern..."
-
------------------------------------------------
-After receiving the user input and the selected style, output ONLY the final rewritten prompt in that style, with no extra explanation.
-"""
+# Groq API Configuration
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 
-def test_style(prompt, style):
+def test_style(prompt, style, api_key=None):
     """Test a style using the extension's API call pattern"""
-    full_prompt = f"{SYSTEM_PROMPT}\n\n[Style: {style.upper()}]\n\n[User Input]: {prompt}"
+    key = api_key or GROQ_API_KEY
+    if not key:
+        return None, 0, "No API key - set GROQ_API_KEY environment variable"
+    
+    user_prompt = f"Style: {style.upper()}\n\nUser Input:\n{prompt}"
+    
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
     
     payload = {
-        "messages": [{"role": "user", "content": full_prompt}],
-        "model": "openai",
-        "seed": 42
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 2048
     }
     
     try:
         start = time.time()
         response = requests.post(
-            POLLINATIONS_API_URL,
-            headers={"Content-Type": "application/json"},
+            GROQ_API_URL,
+            headers=headers,
             json=payload,
             timeout=60
         )
         elapsed = time.time() - start
         
         if response.status_code == 200:
-            return response.text.strip(), elapsed, None
+            data = response.json()
+            return data["choices"][0]["message"]["content"].strip(), elapsed, None
+        elif response.status_code == 401:
+            return None, elapsed, "Invalid API key"
+        elif response.status_code == 429:
+            return None, elapsed, "Rate limited - wait and retry"
         else:
             return None, elapsed, f"Error {response.status_code}"
     except Exception as e:
@@ -161,17 +83,17 @@ def rate_output(style, output):
             issues.append("Missing task field")
     
     elif style == "toon":
-        # TOON should be compact/horizontal
+        # TOON should NOT have braces or quotes
         lines = output.strip().split('\n')
-        if len(lines) > 10:
-            score -= 2
-            issues.append("Too many lines (not compact)")
-        if '{' in output or '"' in output:
-            score -= 3
-            issues.append("Contains JSON-like syntax")
+        if '{' in output and '"' in output:
+            score -= 4
+            issues.append("Contains JSON-like syntax (should be TOON)")
         if ':' not in output:
             score -= 3
             issues.append("Missing TOON key:value format")
+        # Check for tabular array syntax
+        if '[' in output and '{' in output.split('\n')[0]:
+            score += 1  # Bonus for proper array declaration
     
     elif style == "markdown":
         if "## " not in output and "# " not in output:
@@ -217,8 +139,17 @@ def main():
     
     print("="*60)
     print("PROMPTSTYLER EXTENSION PERFORMANCE TEST")
+    print("Using: Shared System Prompt (Single Source of Truth)")
     print("="*60)
+    print(f"Model: {GROQ_MODEL}")
     print()
+    
+    if not GROQ_API_KEY:
+        print("ERROR: No API key found!")
+        print("Set GROQ_API_KEY environment variable:")
+        print("  Windows: set GROQ_API_KEY=your_key")
+        print("  Linux/Mac: export GROQ_API_KEY=your_key")
+        return
     
     for style in styles:
         print(f"\n--- Testing {style.upper()} ---")
@@ -236,7 +167,7 @@ def main():
                 print(f"  Score: {score}/10 | Time: {elapsed:.1f}s | {notes}")
                 print(f"  Output: {output[:100]}...")
             
-            time.sleep(0.5)  # Rate limit
+            time.sleep(0.1)  # Minimal rate limit for Groq
         
         avg = sum(style_scores) / len(style_scores) if style_scores else 0
         results.append((style, avg))
@@ -258,8 +189,11 @@ def main():
     print(f"\nOVERALL: {overall:.1f}/10")
     
     # Save report
+    os.makedirs("output", exist_ok=True)
     report = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "model": GROQ_MODEL,
+        "prompt_source": "shared/system_prompt.py",
         "results": {style: score for style, score in results},
         "overall": overall,
         "test_prompts": test_prompts

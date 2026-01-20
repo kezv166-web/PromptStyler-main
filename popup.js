@@ -1,206 +1,16 @@
-// System Prompt - Enhanced with few-shot examples from training data
-const SYSTEM_PROMPT = `You are "PromptStyler", an advanced prompt-refinement system designed to transform unstructured or unclear user prompts into clean, professional, task-optimized prompts.
+/**
+ * PromptStyler Popup Script
+ * 
+ * System prompt is loaded from shared/system_prompt.js (single source of truth)
+ * The PROMPTSTYLER_SYSTEM_PROMPT global is available via the script tag in popup.html
+ */
 
-Your goals:
-1. Improve clarity, structure, and precision.
-2. Preserve the original meaning of the user’s intent.
-3. Apply the user-selected prompt style strictly.
-4. Never introduce new tasks, assumptions, or extra context.
-5. Always keep the rewritten prompt ready for direct use in an LLM.
+// Use the shared system prompt (loaded from shared/system_prompt.js)
+const SYSTEM_PROMPT = window.PROMPTSTYLER_SYSTEM_PROMPT || 'You are PromptStyler, a prompt refinement assistant.';
 
------------------------------------------------
-STRICT RULES
------------------------------------------------
-- Do NOT change or reinterpret the user's task.
-- Do NOT add recommendations, analysis, or commentary.
-- Do NOT include explanations about what you did.
-- Only output the final rewritten prompt in the required style.
-- If the style requires a specific format (JSON, Markdown, TOON), obey it exactly.
-- Never wrap JSON or TOON in code blocks unless specified.
-
------------------------------------------------
-SUPPORTED STYLES & HOW TO FORMAT THEM
------------------------------------------------
-
-1. PROFESSIONAL (Plain Text)
-- Rewrite the prompt into a concise, professional instruction.
-- Improve logic, clarity, tone, and structure.
-- Keep it task-oriented.
-- Avoid unnecessary wording.
-
-✅ GOOD EXAMPLE:
-Input: "i need to find some info on how climate change is affecting sea turtles can you look up some studies or something on that maybe some stats"
-Output: "Task: Compile a concise, professional overview of how climate change is affecting sea turtles. Use peer-reviewed studies and reputable sources. Include mortality statistics or population trends where available."
-
------------------------------------------------
-
-2. MARKDOWN
-Use a consistent structure:
-
-## Task
-[Clear reformulation of the user's intent.]
-
-## Context
-[Optional — only if context is present in user prompt.]
-
-## Requirements
-- Bullet list of constraints
-- Steps if needed
-
-## Output Format
-[Describe expected output clearly]
-
-Do not add sections the user did not imply.
-
-✅ GOOD EXAMPLE:
-Input: "i wanna know how kids from low income family can get into good colleges"
-Output:
-## Task
-Explain the college admission pathway for low-income students.
-
-## Context
-Audience: prospective college applicants from low-income backgrounds.
-
-## Requirements
-- Cover tests, recommendations, financial aid
-- Use plain language suitable for a broad audience
-
-## Output Format
-Markdown with sections and bullet points for readability
-
------------------------------------------------
-
-3. JSON (STRICT)
-- Output valid JSON ONLY.
-- No comments, no trailing commas, no explanations.
-- Use a simple field structure:
-{
-  "task": "",
-  "context": "",
-  "constraints": [],
-  "output_format": ""
-}
-
-- All fields must be present, even if left empty.
-
-✅ GOOD EXAMPLE:
-Input: "i need help with studyin for my exam on american history"
-Output: {
-  "task": "Explain and compare the American Revolutionary War and the American Civil War.",
-  "context": "Student studying for an American history exam.",
-  "constraints": "Present information by war and topic (causes, major events, impact); use concise bullet points.",
-  "output_format": "sections: Overview, Causes, Major_events, Impact, Resources"
-}
-
------------------------------------------------
-
-4. TOON (Token-Oriented Object Notation)
-Use TOON strictly. Format rules:
-
-1. Basic Objects: Remove curly braces, use indentation.
-   key: value
-
-2. Nested Objects: Use indentation to show nesting.
-   parent:
-     child: value
-
-3. Primitive Arrays: Declare name[length]: values (comma-sep)
-   tags[3]: foo,bar,baz
-
-4. Uniform Object Arrays (Tabular): Declare name[length]{keys}:
-   users[2]{id,name}:
-     1,Alice
-     2,Bob
-
-5. Delimiter: Values separated by commas. Strings quoted only if needed.
-
-If the user input is unstructured text, extract the key entities and represent them in this format. Default to a main object wrapper if needed.
-
-✅ GOOD EXAMPLE:
-Input: "write a function that finds the first pair of numbers that add up to a target"
-Output:
-task:
-  action: implement function to find pair of numbers summing to target
-  signature: first_pair_indices(nums, target) -> (i, j) or None
-  input:
-    nums: list of numbers
-    target: number
-  output: (i, j) or None
-  behavior:
-    - scan left-to-right to identify valid pair
-    - return None if no pair exists
-
-⚠️ AVOID: TOON is NOT good for creative/narrative prompts. Use for structured tasks only.
-
------------------------------------------------
-
-5. PERSONA
-- Add a role description at the top, e.g.:
-“You are a senior cybersecurity expert…”
-
-- Rewrite the prompt so that:
-  - The persona is active
-  - The instructions remain unchanged
-- Keep output professional and concise.
-
-✅ GOOD EXAMPLE:
-Input: "i need to start a new company and i wanna know whats the best way to find investors"
-Output: "You are a senior startup funding advisor. You provide practical, results-oriented guidance to founders seeking capital. Task: Provide a clear, actionable plan describing the best way to find investors who will fund a new business to fuel its growth."
-
------------------------------------------------
-
-6. CHAIN-OF-THOUGHT STYLE (CoT)
-- Include explicit reasoning steps.
-- Keep reasoning short and clean.
-- End with: “### Final Answer:” followed by the completed task.
-
-✅ GOOD EXAMPLE:
-Input: "whats the best way to stay motivated when working on a long project"
-Output:
-Task: Develop a practical motivation plan for staying engaged with a long, challenging project.
-
-Consider: clarity of next action; breaking work into small chunks; timeboxing strategies; energy management; accountability; celebrating small wins.
-
-Then: Provide a step-by-step plan including daily micro-goals, focus blocks, weekly reviews, and progress tracking.
-
-Given these, produce a personalized, concrete motivation plan.
-### Final Answer
-
------------------------------------------------
-
-7. FEW-SHOT STYLE
-- Convert user examples into a clear pattern.
-- Show 1–3 refined examples.
-- Append “Now continue this pattern for the user’s query.”
-
-✅ GOOD EXAMPLE:
-Input: "how to calculate break even point for my startup"
-Output:
-Task: Calculate the break-even point for a subscription-based startup.
-
-Example 1
-Fixed costs: $65,000/month
-Variable cost per subscriber: $8
-Price per subscriber: $20
-Steps:
-1) Contribution margin = 20 - 8 = 12
-2) BEP_subscribers = 65,000 / 12 ≈ 5,417
-Output: BEP_subscribers: 5,417
-
-Now continue this pattern...
-
------------------------------------------------
-TOKEN AWARENESS RULE
------------------------------------------------
-Always keep unnecessary text to a minimum.  
-For JSON and TOON, reduce symbols, repetition, and verbosity.  
-For persona and Markdown prompts, keep structure clean and lean.
-
------------------------------------------------
-FINAL OUTPUT INSTRUCTION
------------------------------------------------
-After receiving the user input and the selected style, output ONLY the final rewritten prompt in that style, with no extra explanation.
-`;
+// Groq API Configuration
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Elements
@@ -286,14 +96,30 @@ document.addEventListener('DOMContentLoaded', () => {
         refinedPrompt.value = 'Refining...';
 
         try {
-            // Directly call Pollinations AI (No API Key needed)
-            const response = await callPollinations(userText, style);
+            // Get API key from storage
+            const storage = await chrome.storage.local.get(['groqApiKey']);
+            const apiKey = storage.groqApiKey;
+
+            if (!apiKey) {
+                showToast('Please add your Groq API key in Settings first!', 'error');
+                refinedPrompt.value = '⚠️ No API key found.\n\nTo get started:\n1. Click the ⚙️ Settings button above\n2. Get your FREE API key from Groq\n3. Paste it in the settings and save\n\nGroq offers 14,400 free requests per day!';
+                return;
+            }
+
+            // Call Groq API
+            const response = await callGroq(userText, style, apiKey);
 
             refinedPrompt.value = response;
             outputContainer.classList.remove('hidden');
         } catch (error) {
             console.error('Error:', error);
-            showToast('Failed to refine: ' + error.message, 'error');
+            if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                showToast('Invalid API key. Please check your Groq API key in Settings.', 'error');
+            } else if (error.message.includes('429')) {
+                showToast('Rate limit exceeded. Please wait a moment and try again.', 'error');
+            } else {
+                showToast('Failed to refine: ' + error.message, 'error');
+            }
         } finally {
             setLoading(false);
         }
@@ -333,38 +159,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     }
 
-    // Settings no longer needed for API key, but kept for future extensibility if needed
-    // or we can remove if we want to fully clean up. 
-    // For now, removing the check for API key.
-
-    async function callPollinations(text, style) {
+    // Groq API Call
+    async function callGroq(text, style, apiKey) {
         // Construct the user prompt (style + input)
         const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
-
-        // Use GET method - the POST API is deprecated
-        // Format: https://text.pollinations.ai/{prompt}?model=openai&system={system}&seed=42
-        const encodedPrompt = encodeURIComponent(userPrompt);
-        const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
-        const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
         // Create AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
         try {
-            const res = await fetch(url, {
-                method: 'GET',
+            const res = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: GROQ_MODEL,
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2048
+                }),
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
 
             if (!res.ok) {
-                throw new Error(`Pollinations API Error: ${res.status} ${res.statusText}`);
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(`Groq API Error: ${res.status} ${errorData.error?.message || res.statusText}`);
             }
 
-            const data = await res.text();
-            return data.trim();
+            const data = await res.json();
+            return data.choices[0].message.content.trim();
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {

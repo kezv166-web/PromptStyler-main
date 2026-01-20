@@ -3,16 +3,16 @@
 import os
 
 # ============================================
-# GROQ API (For task generation)
+# GROQ API (For all AI calls)
 # ============================================
 # Set your API key as environment variable: GROQ_API_KEY
 # Get your free API key at: https://console.groq.com
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
-# ============================================
-# POLLINATIONS API (For styling & rating)
-# ============================================
-POLLINATIONS_API_URL = "https://text.pollinations.ai/"
+# Rate limiting for Groq (14,400 requests/day = ~10 req/min to be safe)
+GROQ_DELAY_MS = 100  # Minimal delay, Groq is fast
 
 # ============================================
 # PROMPTSTYLER STYLES (from popup.js)

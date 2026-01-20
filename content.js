@@ -4,21 +4,17 @@
 (function () {
     'use strict';
 
-    // System prompt
-    const SYSTEM_PROMPT = `You are "PromptStyler", an advanced prompt-refinement system designed to transform unstructured or unclear user prompts into clean, professional, task-optimized prompts.
+    /**
+     * System prompt is loaded from shared/system_prompt.js via manifest.json
+     * The PROMPTSTYLER_SYSTEM_PROMPT global is available because manifest.json
+     * loads shared/system_prompt.js BEFORE this content.js file
+     */
+    const SYSTEM_PROMPT = window.PROMPTSTYLER_SYSTEM_PROMPT ||
+        'You are PromptStyler, a prompt refinement assistant. Refine the user\'s prompt according to the selected style.';
 
-Your goals:
-1. Improve clarity, structure, and precision.
-2. Preserve the original meaning of the user's intent.
-3. Apply the user-selected prompt style strictly.
-4. Never introduce new tasks, assumptions, or extra context.
-5. Always keep the rewritten prompt ready for direct use in an LLM.
-
-STRICT RULES:
-- Do NOT change or reinterpret the user's task.
-- Do NOT add recommendations, analysis, or commentary.
-- Do NOT include explanations about what you did.
-- Only output the final rewritten prompt in the required style.`;
+    // Groq API Configuration
+    const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+    const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
     // Site configurations
     const SITE_CONFIGS = {
@@ -255,16 +251,48 @@ STRICT RULES:
             btn.textContent = '⏳ Refining...';
             errorDiv.style.display = 'none';
 
+            // Get API key from storage
+            const storage = await chrome.storage.local.get(['groqApiKey']);
+            const apiKey = storage.groqApiKey;
+
+            if (!apiKey) {
+                showError('No API key found. Please add your Groq API key in the extension settings.');
+                resultArea.value = '⚠️ Setup Required\n\n1. Click the PromptStyler extension icon\n2. Go to Settings (⚙️)\n3. Get your FREE API key from Groq\n4. Save it and try again!';
+                resultSection.classList.add('visible');
+                return;
+            }
+
             const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
-            const encodedPrompt = encodeURIComponent(userPrompt);
-            const encodedSystem = encodeURIComponent(SYSTEM_PROMPT);
-            const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai&system=${encodedSystem}&seed=42`;
 
-            const response = await fetch(url, { method: 'GET' });
+            const response = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: GROQ_MODEL,
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2048
+                })
+            });
 
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401) {
+                    throw new Error('Invalid API key. Please check your settings.');
+                } else if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please wait and try again.');
+                }
+                throw new Error(`API Error: ${response.status} ${errorData.error?.message || ''}`);
+            }
 
-            const result = (await response.text()).trim();
+            const data = await response.json();
+            const result = data.choices[0].message.content.trim();
             resultArea.value = result;
             resultSection.classList.add('visible');
             btn.textContent = '🔄 Refine Again';
@@ -354,7 +382,7 @@ STRICT RULES:
                 container.style.position = 'relative';
             }
             container.appendChild(createRefineButton());
-            console.log('PromptStyler: Button injected');
+            console.log('PromptStyler: Button injected (using shared system prompt)');
         }
     }
 

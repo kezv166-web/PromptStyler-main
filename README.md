@@ -1,72 +1,110 @@
 # ✨ PromptStyler
 
-**PromptStyler** is a powerful browser extension designed to refine, structure, and optimize your prompts for Large Language Models (LLMs). Whether you need clean Markdown, strict JSON, or a specific persona, PromptStyler transforms your raw input into professional-grade instructions instantly.
+> Transform messy, unstructured prompts into clean, professional, task-optimized instructions with one click.
 
-![PromptStyler Icon](icons/icon128.png)
+## 🌟 Why PromptStyler?
 
-## 🚀 Overview
+Crafting the perfect prompt can be time-consuming. PromptStyler simplifies this by applying proven prompt engineering techniques automatically. It uses **Groq's Llama 3.3 70B** model for ultra-fast, high-quality prompt refinement.
 
-Crafting the perfect prompt can be time-consuming. PromptStyler simplifies this by applying proven prompt engineering techniques automatically. It uses **Pollinations AI** (Free) to process your text, ensuring you get high-quality results without needing your own API keys.
+## ✨ Features
 
-## ✨ Key Features
+-   **🎨 7 Prompt Styles**: Professional, Markdown, JSON, TOON, Persona, Chain-of-Thought, and Few-Shot
+-   **⚡ Instant Refinement**: Ultra-fast responses powered by Groq's inference engine
+-   **🔌 Works Everywhere**: Use the popup, right-click context menu, or the ✨ button on ChatGPT/Claude/Gemini
+-   **🔑 Free API Access**: Each user gets 14,400 free requests per day with their own Groq API key
+-   **🛡️ Privacy First**: Your prompts are sent directly to Groq - no middleman servers
 
--   **🎨 Multiple Styles**: Choose from 7 specialized styles:
-    -   **Professional**: Concise, clear, and business-ready.
-    -   **Markdown**: Structured with headers, bullets, and clear sections.
-    -   **JSON**: Strict JSON output for code integrations.
-    -   **TOON (Token-Oriented Object Notation)**: Optimized, token-efficient formats.
-    -   **Persona**: Adopts a specific role (e.g., "Expert Coder").
-    -   **Chain-of-Thought (CoT)**: Forces the model to show reasoning steps.
-    -   **Few-Shot**: Generates examples to guide the model.
--   **🆓 Free Forever**: Powered by the Pollinations AI API — no paid subscriptions or API keys required.
--   **🔒 Privacy-Focused**: Your prompts are processed securely and not stored by the extension.
--   **⚡ Instant Copy**: One-click copy to clipboard for immediate use in ChatGPT, Claude, Gemini, etc.
+## 🚀 Getting Started
 
-## 📦 Installation
+### 1. Install the Extension
 
-Since this is a developer extension, you can install it manually in Chrome, Edge, or Brave.
+1. Download or clone this repository
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode" (top right)
+4. Click "Load unpacked" and select the project folder
 
-1.  **Download the Code**:
-    *   Clone this repository or download the ZIP and extract it to a folder.
-    *   `git clone https://github.com/yourusername/PromptStyler.git`
+### 2. Get Your Free API Key
 
-2.  **Open Extension Management**:
-    *   Open your browser and navigate to `chrome://extensions`.
-    *   Alternatively, click the **Extensions** puzzle icon > **Manage Extensions**.
+1. Visit [console.groq.com](https://console.groq.com/keys)
+2. Sign up for a free account (no credit card required)
+3. Create a new API key
 
-3.  **Enable Developer Mode**:
-    *   Toggle the **Developer mode** switch in the top-right corner of the page.
+### 3. Configure PromptStyler
 
-4.  **Load Unpacked**:
-    *   Click the **Load unpacked** button that appears.
-    *   Select the folder where you saved/extracted **PromptStyler** (the folder containing `manifest.json`).
+1. Click the PromptStyler extension icon
+2. Click the ⚙️ Settings button
+3. Paste your Groq API key and click Save
+4. You're ready to go!
 
-5.  **Pin & Use**:
-    *   Pin the extension to your toolbar for easy access.
+## 💡 How to Use
 
-## 🛠 How to Use
+### Option 1: Extension Popup
+1. Click the PromptStyler icon in your browser toolbar
+2. Paste or type your raw prompt
+3. Select a style (Professional, Markdown, JSON, etc.)
+4. Click "✨ Refine Prompt"
+5. Copy the refined result!
 
-1.  Click the **PromptStyler** icon in your browser toolbar.
-2.  **Enter your raw prompt** in the text area (e.g., "fix this code" or "write an email to boss").
-3.  **Select a Style** from the dropdown menu (e.g., *Professional* or *Markdown*).
-4.  Click **Refine Prompt**.
-5.  Wait a moment for the AI to process.
-6.  **Copy** the polished result and paste it into your favorite LLM!
+### Option 2: On AI Chat Sites
+When you're on ChatGPT, Claude, or Gemini:
+1. Type your prompt in the chat input
+2. Click the ✨ button that appears
+3. Select a style and refine
+4. Click "Use This Prompt" to insert directly
 
-## 🔧 Configuration
+### Option 3: Right-Click Menu
+1. Select any text on a webpage
+2. Right-click and choose "Refine with PromptStyler"
+3. The popup opens with your text loaded
 
-**No setup required!**
-PromptStyler comes pre-configured to use the free Pollinations AI API. You do not need to enter any API keys or adjust settings.
+## 🎨 Available Styles
+
+| Style | Description |
+|-------|-------------|
+| **Professional** | Clean, concise, business-ready instructions |
+| **Markdown** | Structured with headers, lists, and sections |
+| **JSON** | Strict JSON format for programmatic use |
+| **TOON** | Token-Oriented Object Notation (compact structured format) |
+| **Persona** | Adds a role/expert persona to the prompt |
+| **Chain-of-Thought** | Includes reasoning steps for complex problems |
+| **Few-Shot** | Pattern-based with examples |
+
+## 🔧 Technical Details
+
+### API Usage
+- **Provider**: Groq Cloud
+- **Model**: Llama 3.3 70B Versatile
+- **Free Tier**: 14,400 requests/day, 500K tokens/day per user
+- **Latency**: ~500ms average response time
+
+### Privacy
+- Your API key is stored locally in Chrome storage
+- Prompts are sent directly to Groq's API
+- No data is collected or stored by PromptStyler
+
+## 📁 Project Structure
+
+```
+PromptStyler/
+├── manifest.json      # Extension configuration
+├── popup.html/js/css  # Main popup interface
+├── options.html/js    # Settings page with API key management
+├── content.js         # Injected script for AI chat sites
+├── background.js      # Service worker for context menu
+└── icons/             # Extension icons
+```
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you have ideas for new styles or features:
-
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feature/AmazingStyle`).
-3.  Commit your changes.
-4.  Push to the branch.
-5.  Open a Pull Request.
+Contributions are welcome! Feel free to:
+- Report bugs or suggest features via Issues
+- Submit Pull Requests with improvements
+- Share your prompt engineering tips
 
 ## 📄 License
-All Rights Reserved © 2025
+
+MIT License - feel free to use, modify, and distribute.
+
+---
+
+Made with ❤️ for better prompts

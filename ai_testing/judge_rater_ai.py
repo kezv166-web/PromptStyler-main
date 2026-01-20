@@ -1,31 +1,32 @@
 # Judge + Rater Agent
-# Groq (generation, rate-limited) → Pollinations (style) → Pollinations (rate)
+# Uses Groq API for all AI calls (generation, styling, rating)
 
 import os
 import json
 import random
 import requests
 from groq_client import get_client as get_groq
-from config import STYLES, TASK_CATEGORIES, RATING_CRITERIA, DO_THRESHOLD, POLLINATIONS_API_URL, OUTPUT_DIR
+from config import STYLES, TASK_CATEGORIES, RATING_CRITERIA, DO_THRESHOLD, GROQ_API_URL, GROQ_MODEL, GROQ_API_KEY, OUTPUT_DIR
 from promptstyler import apply_style
 
 CHECKPOINT_INTERVAL = 20
 
 class JudgeRaterAI:
     """
-    Hybrid pipeline:
-    1. Generate raw prompts (Groq - rate limited)
-    2. Apply styles (Pollinations - seed=42) 
-    3. Rate outputs (Pollinations - no seed)
+    Unified Groq pipeline:
+    1. Generate raw prompts (Groq)
+    2. Apply styles (Groq via promptstyler) 
+    3. Rate outputs (Groq)
     """
     
     def __init__(self, groq_key: str = None):
         self.groq = get_groq(groq_key)
+        self.api_key = groq_key or GROQ_API_KEY
         self.styles = [s["name"] for s in STYLES]
         self.categories = list(TASK_CATEGORIES.keys())
     
     def generate_task(self, category: str, difficulty: str = "medium") -> dict:
-        """Generate raw prompt using Groq (rate-limited)."""
+        """Generate raw prompt using Groq."""
         
         prompt = f"""Generate a raw, unstructured user prompt for testing AI prompt styling.
 
@@ -73,7 +74,7 @@ Output ONLY the raw prompt text, nothing else."""
         }
     
     def rate_output(self, raw_prompt: str, style: str, styled_output: str) -> dict:
-        """Rate using Pollinations (NO seed)."""
+        """Rate using Groq API."""
         
         rating_prompt = f"""Rate this styled prompt quality objectively.
 
@@ -86,21 +87,29 @@ Rate 1-10: clarity, structure, completeness, style_compliance, token_efficiency,
 Return ONLY JSON:
 {{"clarity":N,"structure":N,"completeness":N,"style_compliance":N,"token_efficiency":N,"actionability":N,"overall":N,"verdict":"DO/DONT","feedback":"..."}}"""
 
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
         payload = {
+            "model": GROQ_MODEL,
             "messages": [{"role": "user", "content": rating_prompt}],
-            "model": "openai"
+            "temperature": 0.3,
+            "max_tokens": 500
         }
         
         try:
             response = requests.post(
-                POLLINATIONS_API_URL,
-                headers={"Content-Type": "application/json"},
+                GROQ_API_URL,
+                headers=headers,
                 json=payload,
                 timeout=60
             )
             
             if response.status_code == 200:
-                text = response.text.strip()
+                data = response.json()
+                text = data["choices"][0]["message"]["content"].strip()
                 if "{" in text:
                     start = text.find("{")
                     end = text.rfind("}") + 1
@@ -134,7 +143,7 @@ Return ONLY JSON:
         style_results = []
         for style in self.styles:
             print(f"  [{style}] Styling...")
-            styled = apply_style(task["raw_prompt"], style)
+            styled = apply_style(task["raw_prompt"], style, api_key=self.api_key)
             
             if styled:
                 print(f"  [{style}] Rating...")
@@ -161,7 +170,7 @@ Return ONLY JSON:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         
         print(f"\nProcessing {count} tasks")
-        print(f"Generator: Groq (2 sec rate limit)")
+        print(f"Generator: Groq {GROQ_MODEL}")
         print(f"Styles: {', '.join(self.styles)}")
         print(f"Format: JSONL\n")
         
