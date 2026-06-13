@@ -1,13 +1,14 @@
 // Content Script for PromptStyler
 // Injects popup panel directly into AI chat sites
+// Includes feedback tracking via IndexedDB (shared/db.js)
 
 (function () {
     'use strict';
 
     /**
      * System prompt is loaded from shared/system_prompt.js via manifest.json
-     * The PROMPTSTYLER_SYSTEM_PROMPT global is available because manifest.json
-     * loads shared/system_prompt.js BEFORE this content.js file
+     * Database is loaded from shared/db.js via manifest.json
+     * Smart prompt is loaded from shared/smart_prompt.js via manifest.json
      */
     const SYSTEM_PROMPT = window.PROMPTSTYLER_SYSTEM_PROMPT ||
         'You are PromptStyler, a prompt refinement assistant. Refine the user\'s prompt according to the selected style.';
@@ -31,8 +32,18 @@
     let isRefining = false;
     let originalText = '';
     let lastRefineTime = 0;
-    const RATE_LIMIT_MS = 3000; // 3 seconds between requests
-    const MAX_INPUT_LENGTH = 10000; // 10,000 characters max
+    const RATE_LIMIT_MS = 3000;
+    const MAX_INPUT_LENGTH = 10000;
+
+    // Feedback tracking
+    let currentRecordId = null;
+    let originalOutput = '';
+    let isEditingResult = false;
+
+    // Initialize DB
+    if (typeof PromptStylerDB !== 'undefined') {
+        PromptStylerDB.init().catch(e => console.warn('PromptStylerDB: init failed in content', e));
+    }
 
     // Inject styles
     function injectStyles() {
@@ -85,7 +96,14 @@
                 border-radius: 6px; transition: all 0.2s;
             }
             .ps-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
-            .ps-body { padding: 32px 36px 40px 36px; display: flex; flex-direction: column; gap: 24px; max-height: calc(85vh - 70px); overflow-y: auto; }
+            .ps-header-actions { display: flex; align-items: center; gap: 8px; }
+            .ps-settings {
+                background: #22262e; border: 1px solid #2f3441; color: #f3f4f6;
+                font-size: 16px; cursor: pointer; padding: 4px 8px;
+                border-radius: 6px; transition: all 0.2s;
+            }
+            .ps-settings:hover { background: #6366f1; border-color: #6366f1; color: #fff; }
+            .ps-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; max-height: calc(85vh - 70px); overflow-y: auto; overflow-x: hidden; }
             .ps-label {
                 font-size: 12px; font-weight: 600; color: #9ca3af;
                 text-transform: uppercase; letter-spacing: 0.08em;
@@ -96,8 +114,10 @@
                 border-radius: 10px; padding: 14px 16px; color: #f3f4f6;
                 font-family: inherit; font-size: 15px; resize: vertical;
                 min-height: 100px; line-height: 1.5;
+                transition: border-color 0.2s;
             }
             .ps-textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+            .ps-textarea.ps-editing { border-color: #6366f1; background: #1a1e26; }
             .ps-select {
                 width: 100%; background: #22262e; border: 1px solid #2f3441;
                 border-radius: 10px; padding: 14px 16px; color: #f3f4f6;
@@ -115,12 +135,27 @@
             .ps-result-section { display: none; margin-top: 4px; }
             .ps-result-section.visible { display: block; }
             .ps-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-            .ps-btn-copy {
+            .ps-result-actions { display: flex; gap: 8px; }
+            .ps-btn-copy, .ps-btn-edit {
                 background: #22262e; border: 1px solid #2f3441;
                 border-radius: 6px; padding: 8px 14px; color: #9ca3af;
                 font-size: 13px; cursor: pointer; transition: all 0.2s;
             }
-            .ps-btn-copy:hover { color: #fff; border-color: #6366f1; background: #2a2f38; }
+            .ps-btn-copy:hover, .ps-btn-edit:hover { color: #fff; border-color: #6366f1; background: #2a2f38; }
+            .ps-btn-edit.active { color: #6366f1; border-color: #6366f1; }
+            .ps-feedback-row {
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 8px 0; margin-top: 4px;
+            }
+            .ps-feedback-label { font-size: 12px; color: #9ca3af; }
+            .ps-feedback-buttons { display: flex; gap: 8px; }
+            .ps-feedback-btn {
+                background: #22262e; border: 1px solid #2f3441;
+                border-radius: 6px; padding: 6px 12px; font-size: 16px;
+                cursor: pointer; transition: all 0.2s; opacity: 0.6;
+            }
+            .ps-feedback-btn:hover { opacity: 1; transform: scale(1.1); }
+            .ps-feedback-btn.active { opacity: 1; border-color: #6366f1; background: rgba(99,102,241,0.15); }
             .ps-actions { display: flex; gap: 12px; margin-top: 12px; }
             .ps-btn-use {
                 flex: 1; background: #10b981; border: none; border-radius: 10px;
@@ -139,6 +174,9 @@
     // Create popup HTML
     function createPopup(text) {
         originalText = text;
+        currentRecordId = null;
+        originalOutput = '';
+        isEditingResult = false;
 
         const overlay = document.createElement('div');
         overlay.id = 'ps-popup-overlay';
@@ -150,7 +188,10 @@
         popup.innerHTML = `
             <div class="ps-header">
                 <div class="ps-logo">✨ PromptStyler</div>
-                <button class="ps-close" id="ps-close">&times;</button>
+                <div class="ps-header-actions">
+                    <button class="ps-settings" id="ps-settings" title="Settings - Add API Key">⚙️</button>
+                    <button class="ps-close" id="ps-close">&times;</button>
+                </div>
             </div>
             <div class="ps-body">
                 <div>
@@ -173,9 +214,19 @@
                 <div class="ps-result-section" id="ps-result-section">
                     <div class="ps-result-header">
                         <div class="ps-label">Refined Result</div>
-                        <button class="ps-btn-copy" id="ps-copy">📋 Copy</button>
+                        <div class="ps-result-actions">
+                            <button class="ps-btn-edit" id="ps-edit" title="Edit this result">✏️ Edit</button>
+                            <button class="ps-btn-copy" id="ps-copy">📋 Copy</button>
+                        </div>
                     </div>
                     <textarea class="ps-textarea" id="ps-result" rows="5" readonly></textarea>
+                    <div class="ps-feedback-row">
+                        <span class="ps-feedback-label">How was this?</span>
+                        <div class="ps-feedback-buttons">
+                            <button class="ps-feedback-btn" id="ps-fb-up" title="Good result">👍</button>
+                            <button class="ps-feedback-btn" id="ps-fb-down" title="Bad result">👎</button>
+                        </div>
+                    </div>
                     <div class="ps-actions">
                         <button class="ps-btn-use" id="ps-use">✅ Use This Prompt</button>
                     </div>
@@ -190,9 +241,15 @@
 
         // Event listeners
         document.getElementById('ps-close').onclick = closePopup;
+        document.getElementById('ps-settings').onclick = () => {
+            chrome.runtime.sendMessage({ action: 'openOptions' });
+        };
         document.getElementById('ps-refine').onclick = handleRefine;
         document.getElementById('ps-copy').onclick = handleCopy;
         document.getElementById('ps-use').onclick = handleUse;
+        document.getElementById('ps-edit').onclick = handleEditToggle;
+        document.getElementById('ps-fb-up').onclick = () => handleFeedback(1);
+        document.getElementById('ps-fb-down').onclick = () => handleFeedback(-1);
 
         // Keyboard shortcuts
         popup.addEventListener('keydown', (e) => {
@@ -210,10 +267,72 @@
     }
 
     function closePopup() {
+        // Save edit if user was editing when closing
+        if (isEditingResult && currentRecordId) {
+            const resultArea = document.getElementById('ps-result');
+            if (resultArea && resultArea.value !== originalOutput) {
+                PromptStylerDB.updateFeedback(currentRecordId, {
+                    wasEdited: true,
+                    editedVersion: resultArea.value
+                }).catch(console.error);
+            }
+        }
+
         const overlay = document.getElementById('ps-popup-overlay');
         const popup = document.getElementById('ps-popup');
         if (overlay) overlay.remove();
         if (popup) popup.remove();
+    }
+
+    // ─── Edit Toggle ─────────────────────────────────────
+    function handleEditToggle() {
+        const resultArea = document.getElementById('ps-result');
+        const editBtn = document.getElementById('ps-edit');
+        isEditingResult = !isEditingResult;
+
+        resultArea.readOnly = !isEditingResult;
+
+        if (isEditingResult) {
+            resultArea.classList.add('ps-editing');
+            editBtn.classList.add('active');
+            editBtn.textContent = '✅ Done';
+            resultArea.focus();
+        } else {
+            resultArea.classList.remove('ps-editing');
+            editBtn.classList.remove('active');
+            editBtn.textContent = '✏️ Edit';
+
+            // Save edit to DB
+            if (currentRecordId && resultArea.value !== originalOutput) {
+                PromptStylerDB.updateFeedback(currentRecordId, {
+                    wasEdited: true,
+                    editedVersion: resultArea.value
+                }).catch(console.error);
+            }
+        }
+    }
+
+    // ─── Feedback ────────────────────────────────────────
+    function handleFeedback(rating) {
+        if (!currentRecordId) return;
+
+        const upBtn = document.getElementById('ps-fb-up');
+        const downBtn = document.getElementById('ps-fb-down');
+
+        // Toggle: clicking active button resets to 0
+        const currentlyActive = rating === 1
+            ? upBtn.classList.contains('active')
+            : downBtn.classList.contains('active');
+
+        const newRating = currentlyActive ? 0 : rating;
+
+        upBtn.classList.remove('active');
+        downBtn.classList.remove('active');
+        if (newRating === 1) upBtn.classList.add('active');
+        if (newRating === -1) downBtn.classList.add('active');
+
+        PromptStylerDB.updateFeedback(currentRecordId, { rating: newRating })
+            .catch(console.error);
     }
 
     async function handleRefine() {
@@ -247,21 +366,48 @@
         }
         lastRefineTime = now;
 
+        // Reset feedback state
+        currentRecordId = null;
+        originalOutput = '';
+        isEditingResult = false;
+        resultArea.readOnly = true;
+        resultArea.classList.remove('ps-editing');
+        const editBtn = document.getElementById('ps-edit');
+        if (editBtn) { editBtn.classList.remove('active'); editBtn.textContent = '✏️ Edit'; }
+        const upBtn = document.getElementById('ps-fb-up');
+        const downBtn = document.getElementById('ps-fb-down');
+        if (upBtn) upBtn.classList.remove('active');
+        if (downBtn) downBtn.classList.remove('active');
+
         try {
             isRefining = true;
             btn.disabled = true;
             btn.textContent = '⏳ Refining...';
             errorDiv.style.display = 'none';
 
-            // Get API key from storage
-            const storage = await chrome.storage.local.get(['groqApiKey']);
-            const apiKey = storage.groqApiKey;
+            // Get API key from storage (sync first, local fallback)
+            let apiKey = null;
+            try {
+                const syncStorage = await chrome.storage.sync.get(['groqApiKey']);
+                apiKey = syncStorage.groqApiKey;
+            } catch (e) { /* sync might not be available */ }
+
+            if (!apiKey) {
+                const storage = await chrome.storage.local.get(['groqApiKey']);
+                apiKey = storage.groqApiKey;
+            }
 
             if (!apiKey) {
                 showError('No API key found. Please add your Groq API key in the extension settings.');
-                resultArea.value = '⚠️ Setup Required\n\n1. Click the PromptStyler extension icon\n2. Go to Settings (⚙️)\n3. Get your FREE API key from Groq\n4. Save it and try again!';
+                resultArea.value = '⚠️ Setup Required\n\n1. Click ⚙️ above to open Settings\n2. Get your FREE API key from Groq\n3. Save it and try again!';
                 resultSection.classList.add('visible');
                 return;
+            }
+
+            // Build smart prompt with user's feedback history
+            let systemPrompt = SYSTEM_PROMPT;
+            if (typeof SmartPromptBuilder !== 'undefined') {
+                systemPrompt = await SmartPromptBuilder.build(style);
             }
 
             const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
@@ -275,7 +421,7 @@
                 body: JSON.stringify({
                     model: GROQ_MODEL,
                     messages: [
-                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
                     temperature: 0.7,
@@ -296,14 +442,32 @@
             const data = await response.json();
             const result = data.choices[0].message.content.trim();
             resultArea.value = result;
+            originalOutput = result;
             resultSection.classList.add('visible');
             btn.textContent = '🔄 Refine Again';
+
+            // Save to IndexedDB
+            if (typeof PromptStylerDB !== 'undefined') {
+                try {
+                    currentRecordId = await PromptStylerDB.saveRefinement({
+                        inputPrompt: text,
+                        outputPrompt: result,
+                        style: style
+                    });
+                    console.log('PromptStylerDB: Saved refinement #' + currentRecordId);
+                } catch (dbError) {
+                    console.warn('PromptStylerDB: Failed to save', dbError);
+                }
+            }
 
         } catch (error) {
             showError('Failed: ' + error.message);
         } finally {
             isRefining = false;
             btn.disabled = false;
+            if (btn.textContent !== '🔄 Refine Again') {
+                btn.textContent = '✨ Refine Prompt';
+            }
         }
     }
 
@@ -319,6 +483,12 @@
         const btn = document.getElementById('ps-copy');
         btn.textContent = '✅ Copied!';
         setTimeout(() => btn.textContent = '📋 Copy', 2000);
+
+        // Track copy as implicit positive feedback
+        if (currentRecordId && typeof PromptStylerDB !== 'undefined') {
+            PromptStylerDB.updateFeedback(currentRecordId, { wasCopied: true })
+                .catch(console.error);
+        }
     }
 
     function handleUse() {
@@ -333,6 +503,13 @@
                 input.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
+
+        // Track "Use" as strongest positive signal
+        if (currentRecordId && typeof PromptStylerDB !== 'undefined') {
+            PromptStylerDB.updateFeedback(currentRecordId, { wasUsed: true })
+                .catch(console.error);
+        }
+
         closePopup();
     }
 
@@ -384,7 +561,7 @@
                 container.style.position = 'relative';
             }
             container.appendChild(createRefineButton());
-            console.log('PromptStyler: Button injected (using shared system prompt)');
+            console.log('PromptStyler: Button injected (with feedback system)');
         }
     }
 

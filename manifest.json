@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "PromptStyler",
-    "version": "1.3",
+    "version": "1.4",
     "description": "Transform unstructured prompts into clean, professional, task-optimized instructions.",
     "permissions": [
         "clipboardWrite",
@@ -29,6 +29,8 @@
             ],
             "js": [
                 "shared/system_prompt.js",
+                "shared/db.js",
+                "shared/smart_prompt.js",
                 "content.js"
             ],
             "run_at": "document_idle"

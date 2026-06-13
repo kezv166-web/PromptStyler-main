@@ -2,17 +2,23 @@
  * PromptStyler Popup Script
  * 
  * System prompt is loaded from shared/system_prompt.js (single source of truth)
- * The PROMPTSTYLER_SYSTEM_PROMPT global is available via the script tag in popup.html
+ * Database is loaded from shared/db.js (IndexedDB feedback storage)
+ * Smart prompt is loaded from shared/smart_prompt.js (few-shot learning)
  */
-
-// Use the shared system prompt (loaded from shared/system_prompt.js)
-const SYSTEM_PROMPT = window.PROMPTSTYLER_SYSTEM_PROMPT || 'You are PromptStyler, a prompt refinement assistant.';
 
 // Groq API Configuration
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize the feedback database
+    try {
+        await PromptStylerDB.init();
+        console.log('PromptStylerDB: Initialized');
+    } catch (e) {
+        console.warn('PromptStylerDB: Failed to initialize', e);
+    }
+
     // Elements
     const originalPrompt = document.getElementById('original-prompt');
     const styleSelect = document.getElementById('style-select');
@@ -20,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const refinedPrompt = document.getElementById('refined-prompt');
     const outputContainer = document.getElementById('output-container');
     const copyBtn = document.getElementById('copy-btn');
+    const editBtn = document.getElementById('edit-btn');
+    const feedbackUp = document.getElementById('feedback-up');
+    const feedbackDown = document.getElementById('feedback-down');
     const toast = document.getElementById('toast');
     const settingsBtn = document.getElementById('settings-btn');
     const btnText = refineBtn.querySelector('.btn-text');
@@ -31,20 +40,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_TIMEOUT_MS = 30000; // 30 second timeout
     let lastRequestTime = 0;
 
+    // Current refinement tracking
+    let currentRecordId = null;
+    let originalOutput = '';  // Track original output for edit detection
+    let isEditing = false;
+
     // Check for pending text from context menu or content script
-    chrome.storage.local.get(['pendingText', 'source'], (result) => {
-        if (result.pendingText) {
-            originalPrompt.value = result.pendingText;
-            // Clear the pending text
-            chrome.storage.local.remove(['pendingText', 'source']);
-
-            // Auto-focus the textarea
-            originalPrompt.focus();
-
-            // Show a hint that text was loaded
-            showToast('Text loaded! Click Refine or press Ctrl+Enter', 'success');
+    chrome.storage.session.get(['pendingText', 'source'], (result) => {
+        // Fallback to local for backward compatibility
+        if (!result.pendingText) {
+            chrome.storage.local.get(['pendingText', 'source'], (localResult) => {
+                if (localResult.pendingText) {
+                    loadPendingText(localResult.pendingText);
+                    chrome.storage.local.remove(['pendingText', 'source']);
+                }
+            });
+        } else {
+            loadPendingText(result.pendingText);
+            chrome.storage.session.remove(['pendingText', 'source']);
         }
     });
+
+    function loadPendingText(text) {
+        originalPrompt.value = text;
+        originalPrompt.focus();
+        showToast('Text loaded! Click Refine or press Ctrl+Enter', 'success');
+    }
 
     // Navigation
     settingsBtn.addEventListener('click', () => {
@@ -63,7 +84,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Main Action
+    // ─── Edit Toggle ─────────────────────────────────────
+    editBtn.addEventListener('click', () => {
+        isEditing = !isEditing;
+        refinedPrompt.readOnly = !isEditing;
+
+        if (isEditing) {
+            refinedPrompt.classList.add('editing');
+            editBtn.classList.add('edit-btn-active');
+            refinedPrompt.focus();
+        } else {
+            refinedPrompt.classList.remove('editing');
+            editBtn.classList.remove('edit-btn-active');
+
+            // Check if user edited the output
+            if (currentRecordId && refinedPrompt.value !== originalOutput) {
+                PromptStylerDB.updateFeedback(currentRecordId, {
+                    wasEdited: true,
+                    editedVersion: refinedPrompt.value
+                }).then(() => {
+                    showToast('Edit saved as preferred style ✨', 'success');
+                }).catch(console.error);
+            }
+        }
+    });
+
+    // ─── Feedback Buttons ────────────────────────────────
+    feedbackUp.addEventListener('click', () => {
+        if (!currentRecordId) return;
+        setFeedback(1);
+    });
+
+    feedbackDown.addEventListener('click', () => {
+        if (!currentRecordId) return;
+        setFeedback(-1);
+    });
+
+    function setFeedback(rating) {
+        // Toggle: clicking active button resets to 0
+        const currentlyActive = rating === 1
+            ? feedbackUp.classList.contains('active')
+            : feedbackDown.classList.contains('active');
+
+        const newRating = currentlyActive ? 0 : rating;
+
+        feedbackUp.classList.remove('active');
+        feedbackDown.classList.remove('active');
+
+        if (newRating === 1) feedbackUp.classList.add('active');
+        if (newRating === -1) feedbackDown.classList.add('active');
+
+        PromptStylerDB.updateFeedback(currentRecordId, { rating: newRating })
+            .then(() => {
+                if (newRating === 1) showToast('Thanks! This helps improve results 👍', 'success');
+                else if (newRating === -1) showToast('Noted — will avoid this pattern 👎', 'success');
+            })
+            .catch(console.error);
+    }
+
+    // ─── Main Refine Action ──────────────────────────────
     refineBtn.addEventListener('click', async () => {
         const userText = originalPrompt.value.trim();
         const style = styleSelect.value;
@@ -90,15 +169,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         lastRequestTime = now;
 
+        // Reset state
+        currentRecordId = null;
+        originalOutput = '';
+        isEditing = false;
+        refinedPrompt.readOnly = true;
+        refinedPrompt.classList.remove('editing');
+        editBtn.classList.remove('edit-btn-active');
+        feedbackUp.classList.remove('active');
+        feedbackDown.classList.remove('active');
+
         // Loading State
         setLoading(true);
         outputContainer.classList.remove('hidden');
         refinedPrompt.value = 'Refining...';
 
         try {
-            // Get API key from storage
-            const storage = await chrome.storage.local.get(['groqApiKey']);
-            const apiKey = storage.groqApiKey;
+            // Get API key from storage (sync first, local fallback)
+            const syncStorage = await chrome.storage.sync.get(['groqApiKey']);
+            let apiKey = syncStorage.groqApiKey;
+
+            if (!apiKey) {
+                const localStorage = await chrome.storage.local.get(['groqApiKey']);
+                apiKey = localStorage.groqApiKey;
+            }
 
             if (!apiKey) {
                 showToast('Please add your Groq API key in Settings first!', 'error');
@@ -106,11 +200,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Build smart prompt with user's feedback history
+            const systemPrompt = await SmartPromptBuilder.build(style);
+
             // Call Groq API
-            const response = await callGroq(userText, style, apiKey);
+            const response = await callGroq(userText, style, apiKey, systemPrompt);
 
             refinedPrompt.value = response;
+            originalOutput = response;
             outputContainer.classList.remove('hidden');
+
+            // Save to IndexedDB
+            try {
+                currentRecordId = await PromptStylerDB.saveRefinement({
+                    inputPrompt: userText,
+                    outputPrompt: response,
+                    style: style
+                });
+                console.log('PromptStylerDB: Saved refinement #' + currentRecordId);
+            } catch (dbError) {
+                console.warn('PromptStylerDB: Failed to save', dbError);
+            }
+
         } catch (error) {
             console.error('Error:', error);
             if (error.message.includes('401') || error.message.includes('Unauthorized')) {
@@ -125,11 +236,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Copy Action
+    // ─── Copy Action ─────────────────────────────────────
     copyBtn.addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(refinedPrompt.value);
             showToast();
+
+            // Track copy as implicit positive feedback
+            if (currentRecordId) {
+                PromptStylerDB.updateFeedback(currentRecordId, { wasCopied: true })
+                    .catch(console.error);
+            }
         } catch (err) {
             // Fallback for older browsers
             refinedPrompt.select();
@@ -138,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Helpers
+    // ─── Helpers ─────────────────────────────────────────
     function setLoading(isLoading) {
         refineBtn.disabled = isLoading;
         if (isLoading) {
@@ -159,8 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     }
 
-    // Groq API Call
-    async function callGroq(text, style, apiKey) {
+    // ─── Groq API Call ───────────────────────────────────
+    async function callGroq(text, style, apiKey, systemPrompt) {
         // Construct the user prompt (style + input)
         const userPrompt = `Style: ${style}\n\nUser Input:\n${text}`;
 
@@ -178,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     model: GROQ_MODEL,
                     messages: [
-                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
                     temperature: 0.7,

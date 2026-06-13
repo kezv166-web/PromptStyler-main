@@ -340,11 +340,91 @@
             <div id="status-message" class="status-message"></div>
         </div>
 
+        <div class="api-section">
+            <div class="section-label">Learning Stats</div>
+            <div class="info-card">
+                <p class="provider-name">
+                    📊 Feedback History
+                    <span class="badge" style="background: var(--primary-color);">Local</span>
+                </p>
+                <p class="provider-desc" style="margin-bottom: 16px;">
+                    PromptStyler learns from your feedback to improve future refinements. Data is stored locally on your device.
+                </p>
+                <div id="learning-stats">
+                    <p style="color: var(--text-secondary); font-size: 14px;">Loading stats...</p>
+                </div>
+                <div class="btn-row" style="margin-top: 16px;">
+                    <button type="button" id="clear-feedback-btn" class="btn-secondary" style="color: var(--danger-color); border-color: rgba(239,68,68,0.3);">
+                        🗑️ Clear All Feedback Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="footer">
             Made with ❤️ for better prompts
         </div>
     </div>
+    <script src="shared/db.js"></script>
     <script src="options.js"></script>
+
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .stat-card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px 12px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .style-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 0;
+        }
+        .style-bar-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            width: 110px;
+            text-transform: capitalize;
+        }
+        .style-bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .style-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+            border-radius: 4px;
+            min-width: 4px;
+            transition: width 0.3s ease;
+        }
+        .style-bar-count {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            width: 30px;
+            text-align: right;
+        }
+    </style>
 </body>
 
 </html>

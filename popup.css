@@ -69,11 +69,11 @@ h1 {
 
 /* Icons */
 .icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     cursor: pointer;
-    padding: 4px;
+    padding: 6px;
     border-radius: var(--radius-sm);
     transition: all 0.2s;
     display: flex;
@@ -82,8 +82,9 @@ h1 {
 }
 
 .icon-btn:hover {
-    background-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
 }
 
 /* Inputs */
@@ -215,18 +216,74 @@ textarea::-webkit-scrollbar-thumb {
     align-items: center;
 }
 
+.output-actions {
+    display: flex;
+    gap: 6px;
+}
+
 #refined-prompt {
     background-color: transparent;
-    border: none;
-    padding: 0;
+    border: 1px solid transparent;
+    padding: 8px;
     font-family: 'Consolas', 'Monaco', monospace;
-    /* helpful for code/structured output */
     font-size: 0.85rem;
     line-height: 1.6;
+    transition: border-color 0.2s, background-color 0.2s;
 }
 
 #refined-prompt:focus {
     box-shadow: none;
+}
+
+#refined-prompt.editing {
+    border-color: var(--primary-color);
+    background-color: var(--input-bg);
+    border-radius: var(--radius-sm);
+}
+
+/* Feedback */
+.feedback-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.feedback-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.feedback-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.feedback-btn {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.feedback-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.feedback-btn.active {
+    opacity: 1;
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.edit-btn-active {
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
 }
 
 .output-footer {
